@@ -1,0 +1,19 @@
+server:
+  port: 8080
+  tomcat:
+    max-swallow-size: 10MB
+    max-connections: 10000
+    accept-count: 100
+    max-http-form-post-size: 10MB
+
+spring:
+  ai:
+    mcp:
+      server:
+        name: mysql-mcp
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/?useSSL=false&serverTimezone=UTC&characterEncoding=utf-8
+    username: root
+    password: 123456
+
