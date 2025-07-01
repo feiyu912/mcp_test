@@ -1,19 +1,43 @@
 server:
   port: 8080
-  tomcat:
-    max-swallow-size: 10MB
-    max-connections: 10000
-    accept-count: 100
-    max-http-form-post-size: 10MB
+
 
 spring:
-  ai:
-    mcp:
-      server:
-        name: mysql-mcp
+  application:
+    name: knowledge-base
+  profiles:
+    active: dev,private
+  data:
+    redis:
+      host: 192.168.100.128
+      port: 6379
+      database: 0
+      timeout: 10s
+      password: 123456
+      repositories:
+        enabled: false
+      client-type: jedis
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/?useSSL=false&serverTimezone=UTC&characterEncoding=utf-8
+    url: jdbc:mysql://localhost:3306/knowledge_base
     username: root
     password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  ai:
+    dash-scope:
+      api-key: sk-a75e2109f45e4704b3c14cb25e245186
+      chat:
+        options:
+          incremental-output: false
+          model: qwen-max
+      embedding:
+        options:
+          model: text-embedding-v2
+      image:
+        options:
+          model: wanx-v1
+    vectorstore:
+      redis:
+        initialize-schema: true
+        index-name: custom-index
+        prefix: custom-prefix
 
