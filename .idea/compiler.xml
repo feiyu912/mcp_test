@@ -6,12 +6,18 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+      </profile>
+      <profile name="Annotation profile for boot-mcp-server" enabled="true">
+        <sourceOutputDir name="../boot-mcp/boot-mcp-server/target/generated-sources/annotations" />
+        <sourceTestOutputDir name="../boot-mcp/boot-mcp-server/target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
         <module name="boot-mcp-server" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="boot-mcp" target="1.5" />
       <module name="boot-mcp-client" target="17" />
+      <module name="boot-mcp-server" target="17" />
     </bytecodeTargetLevel>
   </component>
 </project>

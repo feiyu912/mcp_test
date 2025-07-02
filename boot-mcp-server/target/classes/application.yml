@@ -45,3 +45,7 @@ spring:
         index-name: custom-index
         prefix: custom-prefix
 
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+
