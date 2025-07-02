@@ -1,4 +1,4 @@
-package com.mcpserver.service;
+package com.mcpserver.mcp;
 
 import java.util.List;
 import java.util.Map;

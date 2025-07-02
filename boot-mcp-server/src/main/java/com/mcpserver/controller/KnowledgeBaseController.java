@@ -55,6 +55,7 @@ public class KnowledgeBaseController {
                 .user(prompt)
                 .advisors(QuestionAnswerAdvisor.builder(vectorStore)
                         .promptTemplate(new PromptTemplate(promptWithContext)).build())
+                .tools()
                 .stream()
                 .content()
                 .map(full -> {

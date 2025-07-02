@@ -1,6 +1,6 @@
 package com.mcpserver;
 
-import com.mcpserver.service.impl.MysqlServiceImpl;
+import com.mcpserver.mcp.impl.MysqlServiceImpl;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.context.annotation.Bean;

@@ -1,6 +1,6 @@
-package com.mcpserver.service.impl;
+package com.mcpserver.mcp.impl;
 
-import com.mcpserver.service.MysqlService;
+import com.mcpserver.mcp.MysqlService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.jdbc.core.JdbcTemplate;
