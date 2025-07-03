@@ -27,11 +27,12 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     }
 
     @Override
-    public boolean addMessage(Long sessionId, String role, String content) {
+    public boolean addMessage(Long sessionId, String role, String content, String reference) {
         ChatMessage msg = new ChatMessage();
         msg.setSessionId(sessionId);
         msg.setRole(role);
         msg.setContent(content);
+        msg.setReference(reference);
         return chatMessageMapper.insert(msg) > 0;
     }
 

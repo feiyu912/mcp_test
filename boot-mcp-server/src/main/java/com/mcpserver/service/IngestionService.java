@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class IngestionService {
@@ -27,7 +29,10 @@ public class IngestionService {
             String trimmed = para.trim();
             if (!trimmed.isEmpty()) {
                 if (sb.length() + trimmed.length() > maxLen) {
-                    docs.add(new Document(sb.toString()));
+                    Map<String, Object> meta = new HashMap<>();
+                    meta.put("type", "global");
+                    Document doc = new Document(sb.toString(), meta);
+                    docs.add(doc);
                     sb.setLength(0);
                 }
                 if (sb.length() > 0) sb.append('\n');
@@ -35,7 +40,10 @@ public class IngestionService {
             }
         }
         if (sb.length() > 0) {
-            docs.add(new Document(sb.toString()));
+            Map<String, Object> meta = new HashMap<>();
+            meta.put("type", "global");
+            Document doc = new Document(sb.toString(), meta);
+            docs.add(doc);
         }
         // 分批入库，每批最多25条
         int batchSize = 25;

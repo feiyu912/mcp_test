@@ -26,11 +26,36 @@
         <span style="margin-left: 8px; font-size: 1.2rem; font-weight: 600; color: #1976d2;">AI 对话</span>
       </div>
       <div class="chat-messages">
-        <div v-for="(msg, idx) in messages" :key="idx" :class="['msg', msg.role]">
-          <div class="msg-bubble">
-            <b>{{ msg.role === 'user' ? '我' : 'AI' }}：</b>
-            <span v-if="msg.role === 'assistant'" style="white-space: pre-line;">{{ removeMarkdownBold(msg.content) }}</span>
-            <span v-else>{{ msg.content }}</span>
+        <div v-for="(msg, idx) in messages" :key="idx">
+          <!-- 只在有参考内容的AI回复上方显示参考栏 -->
+          <template v-if="msg.role === 'assistant' && msg.reference && msg.reference.length">
+            <div class="reference-bar" style="margin-bottom: 8px;">
+              <b>本轮AI参考（共{{ msg.reference.length }}条）</b>
+              <el-button size="small" type="text" @click="msg.referenceCollapsed = !msg.referenceCollapsed" style="margin-left: 8px;">
+                {{ msg.referenceCollapsed ? '展开' : '收起' }}
+              </el-button>
+              <div v-show="!msg.referenceCollapsed">
+                <span v-for="(item, ridx) in msg.reference" :key="ridx" class="ref-item">
+                  <span v-if="item.source === 'session'">
+                    <el-tag type="success">对话文件</el-tag>
+                    <b>{{ item.fileName }}</b>
+                    <span v-if="item.segmentNo">(第{{ item.segmentNo }}段)</span>
+                  </span>
+                  <span v-else>
+                    <el-tag>全局知识</el-tag>
+                    <span class="ref-global">{{ item.text.slice(0, 30) }}...</span>
+                  </span>
+                  <span v-if="ridx < msg.reference.length - 1">，</span>
+                </span>
+              </div>
+            </div>
+          </template>
+          <div :class="['msg', msg.role]">
+            <div class="msg-bubble">
+              <b>{{ msg.role === 'user' ? '我' : 'AI' }}：</b>
+              <span v-if="msg.role === 'assistant'" style="white-space: pre-line;">{{ removeMarkdownBold(msg.content) }}</span>
+              <span v-else>{{ msg.content }}</span>
+            </div>
           </div>
         </div>
         <div v-if="streaming" class="msg assistant">
@@ -40,29 +65,45 @@
         </div>
       </div>
       <div class="chat-input-container compact">
-        <el-form @submit.prevent="sendMessage" class="chat-input compact" inline>
-          <el-form-item class="input" style="flex:1; margin-bottom:0;">
-            <el-input v-model="input" :disabled="streaming" placeholder="请输入你的问题..." clearable @keyup.enter.native="sendMessage" />
-          </el-form-item>
-          <el-form-item class="button" style="margin-bottom:0;">
-            <el-button type="primary" :disabled="!input || streaming || !currentSessionId" @click="sendMessage">发送</el-button>
-          </el-form-item>
-          <el-form-item class="upload" style="margin-bottom:0;">
+        <div class="chat-input-bar-centered">
+          <el-input v-model="input" :disabled="streaming" placeholder="请输入你的问题..." clearable @keyup.enter.native="sendMessage" style="width: 400px; margin-right: 12px;" />
+          <el-button type="primary" :disabled="!input || streaming || !currentSessionId" @click="sendMessage" style="margin-right: 12px;">发送</el-button>
+          <el-button type="success" @click="showUploadDialog = true">
+            <el-icon><Upload /></el-icon>
+            上传文件
+          </el-button>
+        </div>
+        <!-- 上传文件对话框 -->
+        <el-dialog v-model="showUploadDialog" title="上传文件" width="500px">
+          <div class="upload-area">
             <el-upload
-              class="upload-demo"
-              action="/api/knowledge-base/upload"
-              :show-file-list="false"
-              :on-success="handleUploadSuccess"
-              :disabled="streaming"
+              ref="uploadRef"
+              :auto-upload="false"
+              :on-change="onFileChange"
+              :file-list="fileList"
+              drag
+              accept=".txt,.pdf,.doc,.docx"
             >
-              <el-tooltip content="上传文件" placement="top">
-                <el-button circle size="large" type="info" plain style="padding: 0 10px; font-weight: 500; letter-spacing: 2px;">
-                  上传
-                </el-button>
-              </el-tooltip>
+              <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+              <div class="el-upload__text">
+                将文件拖到此处，或<em>点击上传</em>
+              </div>
+              <template #tip>
+                <div class="el-upload__tip">
+                  支持 txt、pdf、doc、docx 格式文件
+                </div>
+              </template>
             </el-upload>
-          </el-form-item>
-        </el-form>
+          </div>
+          <template #footer>
+            <span class="dialog-footer">
+              <el-button @click="showUploadDialog = false">取消</el-button>
+              <el-button type="primary" @click="handleUpload" :loading="uploading" :disabled="!selectedFile">
+                上传
+              </el-button>
+            </span>
+          </template>
+        </el-dialog>
       </div>
       <div class="upload-tip">支持上传文件</div>
     </div>
@@ -70,9 +111,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { ChatLineRound } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ref, onMounted, nextTick } from 'vue'
+import { ChatLineRound, Upload, UploadFilled } from '@element-plus/icons-vue'
+import { ElMessage, ElNotification } from 'element-plus'
+import axios from 'axios'
 
 const input = ref('')
 const messages = ref([])
@@ -82,6 +124,11 @@ const sessions = ref([])
 const currentSessionId = ref(null)
 const editSessionId = ref(null)
 const editSessionTitle = ref('')
+const showUploadDialog = ref(false)
+const selectedFile = ref(null)
+const fileList = ref([])
+const uploading = ref(false)
+const uploadRef = ref()
 
 function formatTime(time) {
   if (!time) return ''
@@ -106,7 +153,15 @@ async function switchSession(id) {
 async function fetchMessages() {
   const token = localStorage.getItem('token')
   const res = await fetch(`/api/chat/session/${currentSessionId.value}`, { headers: { Authorization: token } })
-  messages.value = await res.json()
+  const rawMsgs = await res.json()
+  // 解析 reference 字段
+  messages.value = rawMsgs.map(msg => {
+    let reference = []
+    try {
+      if (msg.reference) reference = JSON.parse(msg.reference)
+    } catch (e) {}
+    return { ...msg, reference, referenceCollapsed: false }
+  })
 }
 
 async function createSession() {
@@ -148,8 +203,22 @@ async function sendMessage() {
       body: JSON.stringify({ role: 'user', content: prompt })
     })
 
-    // 2. 流式请求AI回复
-    const res = await fetch('/api/knowledge-base/chat', {
+    // 2. 先获取AI参考内容
+    const refRes = await fetch(`/api/chat/session/${currentSessionId.value}/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: prompt
+    })
+    const thisReference = await refRes.json()
+    console.log('thisReference', thisReference)
+    // 强制让 reference 字段始终有内容
+    let fixedReference = thisReference
+    if (!Array.isArray(thisReference) || thisReference.length === 0) {
+      fixedReference = [{ source: 'global', text: '【无检索结果，已兜底，后端返回空数组】' }]
+    }
+
+    // 3. 流式请求AI回复
+    const res = await fetch(`/api/chat/session/${currentSessionId.value}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain',
@@ -172,29 +241,82 @@ async function sendMessage() {
         buffer = lines.pop()
         for (const line of lines) {
           if (line.startsWith('data:')) {
-            const data = line.replace(/^data:/, '').trim()
-            streamingContent.value += data
+            const data = line.replace('data:', '').trim()
+            if (data) streamingContent.value += data
           }
         }
       }
     }
-    messages.value.push({ role: 'assistant', content: streamingContent.value })
-    // 3. 保存AI回复到数据库
+    // 4. AI回复结束后，push AI消息并绑定本轮参考内容
+    messages.value.push({
+      role: 'assistant',
+      content: streamingContent.value,
+      reference: fixedReference,
+      referenceCollapsed: false
+    })
+    // 5. 保存AI回复到数据库，带 reference 字段
     await fetch(`/api/chat/session/${currentSessionId.value}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: token },
-      body: JSON.stringify({ role: 'assistant', content: streamingContent.value })
+      body: JSON.stringify({ role: 'assistant', content: streamingContent.value, reference: JSON.stringify(fixedReference) })
     })
-  } catch (e) {
-    messages.value.push({ role: 'assistant', content: '对话出错' })
-  } finally {
     streaming.value = false
     streamingContent.value = ''
+  } catch (e) {
+    streaming.value = false
+    streamingContent.value = ''
+    ElMessage.error('AI回复失败')
   }
 }
 
-function handleUploadSuccess(response, file) {
-  ElMessage.success('文件上传成功：' + file.name)
+function onFileChange(file) {
+  selectedFile.value = file.raw
+  fileList.value = [file]
+}
+
+async function handleUpload() {
+  if (!selectedFile.value) {
+    ElMessage.warning('请先选择文件')
+    return
+  }
+  if (!currentSessionId.value) {
+    ElMessage.warning('请先选择或新建会话')
+    return
+  }
+  uploading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', selectedFile.value)
+    const token = localStorage.getItem('token')
+    // 调试用，打印关键信息
+    console.log('token:', token)
+    console.log('sessionId:', currentSessionId.value)
+    console.log('file:', selectedFile.value)
+    const res = await axios.post(`/api/chat/session/${currentSessionId.value}/upload`, formData, {
+      headers: {
+        Authorization: token
+      }
+    })
+    if (res.status === 200) {
+      ElNotification.success({
+        title: '上传成功',
+        message: '文件上传成功！本对话知识已更新，下次提问可直接用新文件内容',
+        duration: 3000
+      })
+      showUploadDialog.value = false
+      selectedFile.value = null
+      fileList.value = []
+      if (uploadRef.value) {
+        uploadRef.value.clearFiles()
+      }
+    } else {
+      ElMessage.error('上传失败：' + (res.data || '未知错误'))
+    }
+  } catch (e) {
+    ElMessage.error('上传失败：' + (e.response?.data || e.message))
+  } finally {
+    uploading.value = false
+  }
 }
 
 function startEditSession(session) {
@@ -349,6 +471,14 @@ onMounted(() => {
   width: 100%;
   background: #fff;
 }
+.chat-input-bar-centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 auto;
+  padding: 16px 0;
+}
 .chat-input.compact {
   display: flex;
   flex-direction: row;
@@ -475,5 +605,28 @@ onMounted(() => {
 
 .session-x:hover {
   color: #d32f2f;
+}
+
+.upload-area {
+  padding: 20px 0;
+}
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.reference-bar {
+  background: #f4f8fb;
+  color: #1976d2;
+  font-size: 14px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.ref-item {
+  margin-right: 8px;
+}
+.ref-global {
+  color: #888;
 }
 </style> 

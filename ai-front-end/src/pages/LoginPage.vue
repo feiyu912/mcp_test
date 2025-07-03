@@ -42,6 +42,7 @@ async function onLogin() {
   if (data.success) {
     localStorage.setItem('token', data.token)
     localStorage.setItem('userId', data.userId)
+    localStorage.setItem('username', username.value)
     ElMessage.success('登录成功')
     router.push('/')
   } else {
