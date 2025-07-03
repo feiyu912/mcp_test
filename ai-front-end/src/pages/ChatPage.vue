@@ -40,6 +40,7 @@
                     <el-tag type="success">对话文件</el-tag>
                     <b>{{ item.fileName }}</b>
                     <span v-if="item.segmentNo">(第{{ item.segmentNo }}段)</span>
+                    <span class="ref-session">{{ item.text.slice(0, 30) }}...</span>
                   </span>
                   <span v-else>
                     <el-tag>全局知识</el-tag>
@@ -627,6 +628,9 @@ onMounted(() => {
   margin-right: 8px;
 }
 .ref-global {
+  color: #888;
+}
+.ref-session {
   color: #888;
 }
 </style> 
