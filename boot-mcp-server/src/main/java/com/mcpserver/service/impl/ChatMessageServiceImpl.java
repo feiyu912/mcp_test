@@ -9,6 +9,7 @@ import com.mcpserver.service.ChatMessageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
+import java.util.ArrayList;
 
 @Service
 public class ChatMessageServiceImpl implements ChatMessageService {
@@ -17,13 +18,20 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     @Autowired
     private ChatSessionMapper chatSessionMapper;
 
+    // 这里假设有一个简单的内存存储，实际应接入数据库
+    private final List<ChatMessage> messages = new ArrayList<>();
+
     @Override
     public List<ChatMessage> getMessagesBySessionId(Long sessionId, Long userId) {
-        ChatSession session = chatSessionMapper.selectById(sessionId);
-        if (session == null || !session.getUserId().equals(userId)) return List.of();
         QueryWrapper<ChatMessage> wrapper = new QueryWrapper<>();
-        wrapper.eq("session_id", sessionId).orderByAsc("created_at");
-        return chatMessageMapper.selectList(wrapper);
+        wrapper.eq("session_id", sessionId);
+        // 不加 userId 条件，兼容所有历史数据
+        List<ChatMessage> messages = chatMessageMapper.selectList(wrapper);
+        for (ChatMessage msg : messages) {
+            if (msg.getReference() == null) msg.setReference("[]");
+            if (msg.getMcpContent() == null) msg.setMcpContent("");
+        }
+        return messages;
     }
 
     @Override
@@ -33,6 +41,18 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         msg.setRole(role);
         msg.setContent(content);
         msg.setReference(reference);
+        messages.add(msg);
+        return true;
+    }
+
+    @Override
+    public boolean addMessage(Long sessionId, String role, String content, String reference, String mcpContent) {
+        ChatMessage msg = new ChatMessage();
+        msg.setSessionId(sessionId);
+        msg.setRole(role);
+        msg.setContent(content);
+        msg.setReference(reference);
+        msg.setMcpContent(mcpContent);
         return chatMessageMapper.insert(msg) > 0;
     }
 

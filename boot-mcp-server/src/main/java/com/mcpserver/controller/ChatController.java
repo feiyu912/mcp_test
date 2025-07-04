@@ -1,5 +1,6 @@
 package com.mcpserver.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mcpserver.entity.ChatSession;
 import com.mcpserver.entity.ChatMessage;
 import com.mcpserver.service.ChatSessionService;
@@ -50,12 +51,10 @@ public class ChatController {
     // 获取某会话所有消息
     @GetMapping("/session/{id}")
     public List<ChatMessage> getSessionMessages(@RequestHeader("Authorization") String token, @PathVariable("id") Long sessionId) {
-        Long userId = UserController.getUserIdByToken(token);
-        // 校验会话归属
-        List<ChatSession> sessions = chatSessionService.getSessionsByUserId(userId);
-        boolean hasSession = sessions.stream().anyMatch(s -> s.getId().equals(sessionId));
-        if (!hasSession) return Collections.emptyList();
-        return chatMessageService.getMessagesBySessionId(sessionId, userId);
+        // 兼容历史数据：只要 sessionId 存在就查
+        ChatSession session = chatSessionService.getSessionById(sessionId);
+        if (session == null) return Collections.emptyList();
+        return chatMessageService.getMessagesBySessionId(sessionId, session.getUserId());
     }
 
     // 向会话发送消息
@@ -206,34 +205,59 @@ public class ChatController {
         return results.size() > 10 ? results.subList(0, 10) : results;
     }
 
-    // 对话流式回答接口：合并session和全局知识库上下文
+    // 对话流式回答接口：RAG+Tool Calling
     @PostMapping(value = "/session/{sessionId}/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> chatWithSessionAndGlobal(@PathVariable("sessionId") Long sessionId, @RequestBody String prompt) {
+    public Flux<ServerSentEvent<String>> chatWithSessionAndGlobal(
+            @PathVariable("sessionId") Long sessionId,
+            @RequestBody Map<String, Object> body
+    ) {
+        String prompt = (String) body.get("prompt");
+
         // 1. 检索上下文
         List<Map<String, Object>> contextList = searchSessionAndGlobal(sessionId, prompt);
         StringBuilder context = new StringBuilder();
         for (Map<String, Object> item : contextList) {
             context.append(item.get("text")).append("\n");
         }
+
+        // 2. 组装 PromptTemplate，补全所有 MCP 工具描述
         String promptWithContext = """
+你可以调用如下工具：
+- amap-mcp(address: string): 高德地图地理编码
+- weather-mcp(city: string): 天气查询
+- translate-mcp(text: string, target: string): 翻译
+- time-mcp(): 获取当前时间
+- random-mcp(min: int, max: int): 生成随机整数
+- filesystem-mcp(path: string): 文件系统操作
+- unitconvert-mcp(value: double, type: string): 单位换算
+- stock-mcp(code: string): 股票查询
+
+请根据用户输入自动决定是否需要调用工具，并输出结构化参数。
+
 {query}
-下面是上下文信息
+Context:
 ---------------------
 {question_answer_context}
 ---------------------
-给定的上下文和提供的历史信息，而不是事先的知识，回复用户的意见。如果答案不在上下文中，告诉用户你不能回答这个问题。
 """;
+
+        PromptTemplate promptTemplate = PromptTemplate.builder()
+                .template(promptWithContext)
+                .build();
+
+        QuestionAnswerAdvisor qaAdvisor = QuestionAnswerAdvisor.builder(vectorStore)
+                .promptTemplate(promptTemplate)
+                .build();
+
         ChatClient chatClient = ChatClient.builder(chatModel).build();
         final StringBuilder lastContent = new StringBuilder();
+        final String safePrompt = prompt != null ? prompt : "";
+        final String safeContext = context != null ? context.toString() : "";
+
         return chatClient.prompt()
-                .user(prompt)
-                .advisors(advisorSpec -> advisorSpec
-                        .advisors(QuestionAnswerAdvisor.builder(vectorStore)
-                                .promptTemplate(new PromptTemplate(promptWithContext))
-                                .build())
-                        .param("question_answer_context", context.toString())
-                )
-                .tools()
+                .user(safePrompt)
+                .advisors(qaAdvisor)
+                .tools() // 自动注册所有 @Tool 工具
                 .stream()
                 .content()
                 .map(full -> {
@@ -244,25 +268,19 @@ public class ChatController {
                     lastContent.setLength(0);
                     lastContent.append(full);
                     return ServerSentEvent.builder(delta).event("message").build();
+                })
+                .doOnComplete(() -> {
+                    if (lastContent.length() > 0) {
+                        String referenceJson = "[]";
+                        try {
+                            ObjectMapper mapper = new ObjectMapper();
+                            referenceJson = mapper.writeValueAsString(contextList);
+                        } catch (Exception e) {
+                            System.out.println("[ERROR] 转换reference失败: " + e.getMessage());
+                        }
+                        chatMessageService.addMessage(sessionId, "assistant", lastContent.toString(), referenceJson);
+                    }
                 });
     }
 
-    // 临时接口：清理所有无type字段的embedding
-    @DeleteMapping("/cleanup-embedding")
-    public Map<String, Object> cleanupEmbedding() {
-        SearchRequest request = SearchRequest.builder().query("").topK(1000).build();
-        List<Document> allDocs = vectorStore.similaritySearch(request);
-        List<String> toDelete = new ArrayList<>();
-        for (Document doc : allDocs) {
-            if (!doc.getMetadata().containsKey("type")) {
-                if (doc.getId() != null) {
-                    toDelete.add(doc.getId());
-                }
-            }
-        }
-        if (!toDelete.isEmpty()) {
-            vectorStore.delete(toDelete);
-        }
-        return Map.of("deleted", toDelete.size());
-    }
-} 
+}

@@ -57,6 +57,24 @@
               <span v-if="msg.role === 'assistant'" style="white-space: pre-line;">{{ removeMarkdownBold(msg.content) }}</span>
               <span v-else>{{ msg.content }}</span>
             </div>
+            <!-- MCP工具调用信息显示 -->
+            <div v-if="msg.role === 'assistant' && msg.mcpContent" class="mcp-content">
+              <div class="mcp-header">
+                <el-icon><Tools /></el-icon>
+                <span>MCP工具调用</span>
+              </div>
+              <div class="mcp-body">
+                <pre>{{ msg.mcpContent }}</pre>
+              </div>
+            </div>
+            <!-- 知识库引用内容显示 -->
+            <!-- <div v-if="msg.role === 'assistant' && msg.reference && msg.reference.length" class="reference-bar">
+              <div v-for="ref in msg.reference" :key="ref.text" class="ref-item">
+                <span :class="ref.source === 'global' ? 'ref-global' : 'ref-session'">
+                  {{ ref.text }}
+                </span>
+              </div>
+            </div> -->
           </div>
         </div>
         <div v-if="streaming" class="msg assistant">
@@ -73,6 +91,28 @@
             <el-icon><Upload /></el-icon>
             上传文件
           </el-button>
+          <!-- MCP工具多选下拉 -->
+          <el-select
+            v-model="selectedTools"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            placeholder="选择工具（可多选）"
+            style="min-width: 220px; max-width: 320px; margin-left: 16px; border-radius: 8px;"
+            filterable
+            clearable
+            tag-type="success"
+          >
+            <el-option
+              v-for="tool in mcpTools"
+              :key="tool.name"
+              :label="tool.description"
+              :value="tool.name"
+            >
+              <el-icon style="margin-right: 6px;"><Tools /></el-icon>
+              {{ tool.description }}
+            </el-option>
+          </el-select>
         </div>
         <!-- 上传文件对话框 -->
         <el-dialog v-model="showUploadDialog" title="上传文件" width="500px">
@@ -113,7 +153,7 @@
 
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
-import { ChatLineRound, Upload, UploadFilled } from '@element-plus/icons-vue'
+import { ChatLineRound, Upload, UploadFilled, Tools } from '@element-plus/icons-vue'
 import { ElMessage, ElNotification } from 'element-plus'
 import axios from 'axios'
 
@@ -130,6 +170,10 @@ const selectedFile = ref(null)
 const fileList = ref([])
 const uploading = ref(false)
 const uploadRef = ref()
+
+// MCP工具相关
+const mcpTools = ref([]);
+const selectedTools = ref([]);
 
 function formatTime(time) {
   if (!time) return ''
@@ -222,10 +266,13 @@ async function sendMessage() {
     const res = await fetch(`/api/chat/session/${currentSessionId.value}/chat`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'text/plain',
+        'Content-Type': 'application/json',
         'Accept': 'text/event-stream'
       },
-      body: prompt
+      body: JSON.stringify({
+        prompt: prompt,
+        tools: selectedTools.value
+      })
     })
     if (!res.body) throw new Error('无响应流')
     const reader = res.body.getReader()
@@ -248,19 +295,8 @@ async function sendMessage() {
         }
       }
     }
-    // 4. AI回复结束后，push AI消息并绑定本轮参考内容
-    messages.value.push({
-      role: 'assistant',
-      content: streamingContent.value,
-      reference: fixedReference,
-      referenceCollapsed: false
-    })
-    // 5. 保存AI回复到数据库，带 reference 字段
-    await fetch(`/api/chat/session/${currentSessionId.value}/message`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: token },
-      body: JSON.stringify({ role: 'assistant', content: streamingContent.value, reference: JSON.stringify(fixedReference) })
-    })
+    // 4. AI回复结束后，重新获取消息列表以包含MCP内容
+    await fetchMessages()
     streaming.value = false
     streamingContent.value = ''
   } catch (e) {
@@ -373,7 +409,17 @@ async function deleteSession(id) {
 
 onMounted(() => {
   fetchSessions()
+  fetchMcpTools()
 })
+
+async function fetchMcpTools() {
+  try {
+    const res = await fetch('/api/mcp/tools');
+    mcpTools.value = await res.json();
+  } catch (e) {
+    mcpTools.value = [];
+  }
+}
 </script>
 
 <style scoped>
@@ -632,5 +678,40 @@ onMounted(() => {
 }
 .ref-session {
   color: #888;
+}
+
+/* MCP工具调用内容样式 */
+.mcp-content {
+  margin-top: 12px;
+  border: 1px solid #e0e7ff;
+  border-radius: 8px;
+  background: #f8faff;
+  overflow: hidden;
+}
+
+.mcp-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #e0e7ff;
+  color: #4338ca;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.mcp-body {
+  padding: 12px 16px;
+  background: #f8faff;
+}
+
+.mcp-body pre {
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #374151;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style> 

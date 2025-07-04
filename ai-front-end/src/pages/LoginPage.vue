@@ -10,7 +10,7 @@
           <el-input v-model="password" type="password" placeholder="密码" />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="onLogin" style="width:100%">登录</el-button>
+          <el-button type="primary" native-type="submit" style="width:100%">登录</el-button>
         </el-form-item>
       </el-form>
       <div class="login-link">

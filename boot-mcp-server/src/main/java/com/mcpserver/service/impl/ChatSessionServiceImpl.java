@@ -43,4 +43,9 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         if (session == null || !session.getUserId().equals(userId)) return false;
         return chatSessionMapper.deleteById(sessionId) > 0;
     }
+
+    @Override
+    public ChatSession getSessionById(Long sessionId) {
+        return chatSessionMapper.selectById(sessionId);
+    }
 } 

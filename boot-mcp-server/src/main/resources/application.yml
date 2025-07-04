@@ -49,3 +49,12 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
 
+mcp:
+  weather:
+    api-key: a2053731a8004afb863790381fc6a2b3
+  amap:
+    api-key: 7f117bd6d90738b3add406a8f816f6c4
+  translate:
+    app-id: 20250704002397096
+    app-secret: btleL4sORLvFro_pWVja
+

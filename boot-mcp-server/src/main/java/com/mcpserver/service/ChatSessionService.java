@@ -9,4 +9,5 @@ public interface ChatSessionService  {
     ChatSession createSession(Long userId, String title);
     boolean renameSession(Long sessionId, Long userId, String title);
     boolean deleteSession(Long sessionId, Long userId);
+    ChatSession getSessionById(Long sessionId);
 } 
