@@ -13,6 +13,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <spring-boot.version>3.4.3</spring-boot.version>
+        <spring-ai.version>1.0.0</spring-ai.version>
     </properties>
     <dependencies>
         <dependency>
@@ -24,10 +25,11 @@
             <artifactId>lombok</artifactId>
         </dependency>
 
+        <!-- Spring AI MCP Server -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
-            <version>1.0.0</version>
+            <version>${spring-ai.version}</version>
         </dependency>
 
         <dependency>
@@ -42,10 +44,6 @@
             <artifactId>mybatis-spring-boot-starter</artifactId>
             <version>3.0.3</version>
         </dependency>
-        <!--<dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-mcp-server</artifactId>
-        </dependency>-->
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -53,25 +51,29 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Spring AI Vector Store -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-vector-store-redis</artifactId>
-            <version>1.0.0</version>
+            <version>${spring-ai.version}</version>
         </dependency>
         <dependency>
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
         </dependency>
 
+        <!-- Spring AI Advisors -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-advisors-vector-store</artifactId>
-            <version>1.0.0</version>
+            <version>${spring-ai.version}</version>
         </dependency>
+        
+        <!-- Spring AI Document Reader -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-tika-document-reader</artifactId>
-            <version>1.0.0</version>
+            <version>${spring-ai.version}</version>
         </dependency>
 
         <dependency>
@@ -99,14 +101,7 @@
             <version>2.9.2</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-advisors-vector-store</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-advisors-vector-store</artifactId>
-        </dependency>
+        <!-- Alibaba DashScope AI -->
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>spring-ai-alibaba-starter-dashscope</artifactId>
@@ -124,7 +119,6 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
-
     </dependencies>
     <dependencyManagement>
         <dependencies>
@@ -138,7 +132,7 @@
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
-                <version>1.0.0</version>
+                <version>${spring-ai.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -155,7 +149,6 @@
                 <version>8.0.30</version>
                 <scope>runtime</scope>
             </dependency>
-
 
         </dependencies>
     </dependencyManagement>

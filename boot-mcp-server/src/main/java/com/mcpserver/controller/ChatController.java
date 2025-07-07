@@ -24,6 +24,8 @@ import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Flux;
+import com.mcpserver.mcp.impl.TimeTool;
+import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 
 @RestController
 @RequestMapping("/api/chat")
@@ -40,6 +42,10 @@ public class ChatController {
     private EmbeddingModel embeddingModel;
     @Autowired
     private ChatModel chatModel;
+    @Autowired
+    private TimeTool timeTool;
+    @Autowired
+    private MethodToolCallbackProvider mcpToolCallbacks;
 
     // 获取当前用户所有会话
     @GetMapping("/sessions")
@@ -212,25 +218,26 @@ public class ChatController {
             @RequestBody Map<String, Object> body
     ) {
         String prompt = (String) body.get("prompt");
+        System.out.println("[DEBUG] 收到用户问题: " + prompt);
 
         // 1. 检索上下文
         List<Map<String, Object>> contextList = searchSessionAndGlobal(sessionId, prompt);
-        StringBuilder context = new StringBuilder();
-        for (Map<String, Object> item : contextList) {
-            context.append(item.get("text")).append("\n");
-        }
 
         // 2. 组装 PromptTemplate，补全所有 MCP 工具描述
+        StringBuilder contextBuilder = new StringBuilder();
+        for (Map<String, Object> ctx : contextList) {
+            contextBuilder.append(ctx.getOrDefault("text", ""));
+            contextBuilder.append("\n");
+        }
+        String contextString = contextBuilder.toString().trim();
+        
+        // 改进的提示词模板，更清晰地说明工具调用
         String promptWithContext = """
 你可以调用如下工具：
-- amap-mcp(address: string): 高德地图地理编码
-- weather-mcp(city: string): 天气查询
-- translate-mcp(text: string, target: string): 翻译
 - time-mcp(): 获取当前时间
 - random-mcp(min: int, max: int): 生成随机整数
 - filesystem-mcp(path: string): 文件系统操作
 - unitconvert-mcp(value: double, type: string): 单位换算
-- stock-mcp(code: string): 股票查询
 
 请根据用户输入自动决定是否需要调用工具，并输出结构化参数。
 
@@ -243,6 +250,10 @@ Context:
 
         PromptTemplate promptTemplate = PromptTemplate.builder()
                 .template(promptWithContext)
+                .variables(Map.of(
+                    "query", prompt,
+                    "question_answer_context", contextString
+                ))
                 .build();
 
         QuestionAnswerAdvisor qaAdvisor = QuestionAnswerAdvisor.builder(vectorStore)
@@ -252,12 +263,11 @@ Context:
         ChatClient chatClient = ChatClient.builder(chatModel).build();
         final StringBuilder lastContent = new StringBuilder();
         final String safePrompt = prompt != null ? prompt : "";
-        final String safeContext = context != null ? context.toString() : "";
 
         return chatClient.prompt()
                 .user(safePrompt)
                 .advisors(qaAdvisor)
-                .tools() // 自动注册所有 @Tool 工具
+                .toolCallbacks(mcpToolCallbacks) // 使用注入的MCP工具
                 .stream()
                 .content()
                 .map(full -> {
@@ -278,9 +288,57 @@ Context:
                         } catch (Exception e) {
                             System.out.println("[ERROR] 转换reference失败: " + e.getMessage());
                         }
-                        chatMessageService.addMessage(sessionId, "assistant", lastContent.toString(), referenceJson);
+                        // 自动提取所有MCP工具调用内容
+                        String content = lastContent.toString();
+                        // 根据前端传递的tools参数，只提取这些工具的"【工具】xxx-mcp:"块内容
+                        List<String> tools = null;
+                        try {
+                            tools = (List<String>) body.get("tools");
+                        } catch (Exception e) {
+                            // 兼容前端未传tools的情况
+                        }
+                        StringBuilder mcpBuilder = new StringBuilder();
+                        if (tools != null && !tools.isEmpty()) {
+                            for (String tool : tools) {
+                                String regex = "【工具】" + tool + ":\\s*([\\s\\S]*?)(?=【工具】[\\w\\-]+-mcp:|$)";
+                                java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(regex);
+                                java.util.regex.Matcher matcher = pattern.matcher(content);
+                                while (matcher.find()) {
+                                    String mcp = matcher.group(1).trim();
+                                    if (!mcp.isEmpty()) {
+                                        if (mcpBuilder.length() > 0) mcpBuilder.append("\n\n");
+                                        mcpBuilder.append(mcp);
+                                    }
+                                }
+                            }
+                        }
+                        String mcpContent = mcpBuilder.length() > 0 ? mcpBuilder.toString() : null;
+                        System.out.println("[DEBUG] AI原始回复: " + content);
+                        System.out.println("[DEBUG] 提取到的MCP内容: " + mcpContent);
+                        String contentWithoutMcp = content;
+                        chatMessageService.addMessage(sessionId, "assistant", contentWithoutMcp, referenceJson, mcpContent);
                     }
                 });
+    }
+
+    // 极简Tool Calling测试接口，测试MCP工具调用
+    @PostMapping("/test/tool-calling")
+    public String testToolCalling() {
+        System.out.println("[DEBUG] timeTool bean class: " + timeTool.getClass());
+        for (var m : timeTool.getClass().getMethods()) {
+            System.out.println("[DEBUG] method: " + m.getName());
+            var toolAnno = m.getAnnotation(org.springframework.ai.tool.annotation.Tool.class);
+            System.out.println("[DEBUG] @Tool annotation: " + toolAnno);
+        }
+        
+        String prompt = "请务必调用 time-mcp 工具获取当前时间，不要自己编造答案，只能用工具！";
+        ChatClient chatClient = ChatClient.builder(chatModel).build();
+        String result = chatClient.prompt()
+                .user(prompt)
+                .toolCallbacks(mcpToolCallbacks) // 使用注入的MCP工具
+                .call().content();
+        System.out.println("[TOOL CALLING DEMO] AI回复: " + result);
+        return result;
     }
 
 }

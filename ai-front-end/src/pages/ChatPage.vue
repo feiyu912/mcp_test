@@ -263,16 +263,19 @@ async function sendMessage() {
     }
 
     // 3. 流式请求AI回复
+    console.log('发送的工具选择:', selectedTools.value)
+    const requestBody = {
+      prompt: prompt,
+      tools: selectedTools.value
+    }
+    console.log('请求体:', requestBody)
     const res = await fetch(`/api/chat/session/${currentSessionId.value}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream'
       },
-      body: JSON.stringify({
-        prompt: prompt,
-        tools: selectedTools.value
-      })
+      body: JSON.stringify(requestBody)
     })
     if (!res.body) throw new Error('无响应流')
     const reader = res.body.getReader()
@@ -415,7 +418,15 @@ onMounted(() => {
 async function fetchMcpTools() {
   try {
     const res = await fetch('/api/mcp/tools');
-    mcpTools.value = await res.json();
+    const allTools = await res.json();
+    // 只保留本地工具
+    mcpTools.value = allTools.filter(tool => [
+      'time-mcp',
+      'random-mcp',
+      'filesystem-mcp',
+      'unitconvert-mcp',
+      'mysql-mcp'
+    ].includes(tool.name));
   } catch (e) {
     mcpTools.value = [];
   }

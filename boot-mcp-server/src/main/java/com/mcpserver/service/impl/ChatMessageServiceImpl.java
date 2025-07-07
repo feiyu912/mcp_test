@@ -41,8 +41,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         msg.setRole(role);
         msg.setContent(content);
         msg.setReference(reference);
-        messages.add(msg);
-        return true;
+        return chatMessageMapper.insert(msg) > 0;
     }
 
     @Override
