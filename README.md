@@ -1,284 +1,157 @@
-# AI Cloud 智能云服务平台
+# AI智能问答平台
 
-## 项目概述
+## 项目简介
 
-AI Cloud 是一个基于微服务架构的智能云服务平台，集成了先进的人工智能能力，提供知识库管理、智能聊天、文档分析等功能。项目采用前后端分离架构，后端使用 Spring Boot + Spring Cloud 构建，前端采用 Vue 3 + Element Plus 开发，同时集成了 RAGFlow 远程服务实现高效的知识库管理。
+AI智能问答平台是一个集成了知识库管理、AI对话和文档处理功能的全栈应用系统。系统采用前后端分离架构，前端提供用户友好的界面，后端负责处理AI模型交互、向量存储和文档处理等核心功能。
 
-## 项目架构
+### 主要功能
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   前端应用      │────▶│   API网关       │────▶│   AI服务        │────▶│   RAGFlow       │
-│  (Vue 3)        │◀────│ (Gateway)       │◀────│  (Spring Boot)  │◀────│  远程服务       │
-└─────────────────┘     └─────────────────┘     └─────────────────┘     └─────────────────┘
-                                                           ▲
-                                                           │
-                                                  ┌────────┴────────┐
-                                                  │                 │
-                                          ┌────────┴─┐     ┌───────┴──────┐
-                                          │  MySQL   │     │    Redis     │
-                                          └──────────┘     └──────────────┘
-```
-
-### 服务组件
-
-1. **ai-front-end** - 前端应用
-   - 基于 Vue 3 + Vite 构建
-   - 使用 Element Plus 组件库
-   - 提供用户界面和交互功能
-
-2. **gateway-service** - API网关服务
-   - 基于 Spring Cloud Gateway
-   - 提供服务路由和负载均衡
-   - 集成 Nacos 服务发现
-
-3. **ai-service** - AI核心服务
-   - 基于 Spring Boot 构建
-   - 提供聊天、知识库检索、文档管理等功能
-   - 集成 Spring AI 实现 AI 能力
-   - 连接 RAGFlow 远程服务实现知识库管理
+- **AI对话系统**：支持多轮对话、历史会话管理、会话标题编辑和删除
+- **知识库管理**：提供基于向量检索的知识库搜索功能
+- **文件上传与处理**：支持上传文档并将内容导入知识库
+- **用户认证**：包含用户注册、登录和会话管理功能
 
 ## 技术栈
 
-### 后端技术
+### 前端
 
-- **框架**: Spring Boot 3.3.4, Spring Cloud 2023.0.3, Spring Cloud Alibaba 2023.0.3.2
-- **AI能力**: Spring AI 1.0.0
-- **服务治理**: Nacos 服务发现与配置管理
-- **数据库**: MySQL 8.0, Redis
-- **ORM**: MyBatis
-- **构建工具**: Maven
-- **JDK版本**: Java 21
+- **框架**：Vue 3 + Vite
+- **UI组件库**：Element Plus
+- **路由**：Vue Router 4
+- **开发工具**：VSCode + Volar
 
-### 前端技术
+### 后端
 
-- **框架**: Vue 3
-- **构建工具**: Vite 5.2.0
-- **UI组件库**: Element Plus 2.7.2
-- **HTTP客户端**: Axios 1.10.0
-- **路由**: Vue Router 4.2.5
-- **Markdown渲染**: Marked 16.1.1
+- **框架**：Spring Boot 3.4.3
+- **AI集成**：Spring AI
+- **向量存储**：Redis
+- **数据库**：MySQL
+- **文档处理**：Apache Tika
+- **ORM**：MyBatis
 
-## 主要功能
+## 项目结构
 
-### 1. 聊天功能
-- 创建、管理和删除聊天会话
-- 发送和接收消息
-- 会话消息历史记录
-- 支持工具调用能力
-
-### 2. 知识库管理
-- 数据集创建与管理
-- 文档上传与解析
-- 语义搜索与知识检索
-- 检索结果高亮显示
-
-### 3. 工具集成
-- 时间工具
-- 随机数生成工具
-- 文件系统工具
-- 单位转换工具
-- MySQL数据库服务
-
-### 4. 微服务能力
-- 服务注册与发现
-- 配置中心管理
-- API网关路由
-- 负载均衡
-
-## 快速开始
-
-### 环境要求
-
-- JDK 21+
-- Maven 3.8+
-- Node.js 16+
-- npm 8+
-- MySQL 8.0+
-- Redis 6.0+
-- Nacos 2.2.0+
-- RAGFlow 服务
-
-### 后端部署
-
-#### 1. 配置Nacos
-
-启动Nacos服务，并确保服务可访问。
-
-#### 2. 配置RAGFlow
-
-在 `ai-service/src/main/resources/application.yml` 中配置RAGFlow服务：
-
-```yaml
-ragflow:
-  base-url: http://192.168.100.128:80  # RAGFlow服务地址
-  api-key: ${RAGFLOW_API_KEY:}         # API Key（可选）
+```
+mcp_test/
+├── ai-front-end/        # 前端Vue项目
+│   ├── public/          # 静态资源
+│   ├── src/             # 源代码
+│   │   ├── assets/      # 资源文件
+│   │   ├── components/  # 组件
+│   │   ├── pages/       # 页面组件
+│   │   ├── App.vue      # 根组件
+│   │   └── main.js      # 入口文件
+│   ├── package.json     # 前端依赖
+│   └── vite.config.js   # Vite配置
+├── boot-mcp-server/     # 后端Spring Boot项目
+│   ├── src/             # 后端源码
+│   │   ├── main/        # 主要代码
+│   │   └── test/        # 测试代码
+│   └── pom.xml          # Maven依赖配置
 ```
 
-#### 3. 构建与启动服务
+## 页面功能说明
 
-```bash
-# 在项目根目录执行
-mvn clean install
+### AI对话页面
+- 支持创建、切换、重命名和删除会话
+- 实时流式接收AI回复
+- 支持在对话中上传文件
+- 历史消息自动保存和加载
 
-# 启动网关服务
-cd gateway-service
-mvn spring-boot:run
+### 知识库页面
+- 提供基于向量检索的语义搜索
+- 显示搜索结果和相关度评分
+- 支持高亮匹配内容
 
-# 启动AI服务
-cd ../ai-service
-mvn spring-boot:run
-```
+### 文件上传页面
+- 支持多种格式文件上传
+- 文件内容自动处理并导入知识库
+- 上传状态和结果反馈
 
-### 前端部署
+### 用户认证页面
+- 用户注册和登录功能
+- 基于Token的身份验证
+- 受保护路由的访问控制
 
-```bash
-# 进入前端目录
+## 开发环境设置
+
+### 前端开发
+
+1. 安装依赖
+```sh
 cd ai-front-end
-
-# 安装依赖
 npm install
+```
 
-# 开发环境启动
+2. 启动开发服务器
+```sh
 npm run dev
+```
 
-# 生产环境构建
+3. 构建生产版本
+```sh
 npm run build
 ```
 
+4. 预览生产构建
+```sh
+npm run preview
+```
+
+### 后端开发
+
+1. 配置数据库连接
+2. 配置Redis连接
+3. 配置AI模型参数
+4. 启动Spring Boot应用
+
 ## API接口说明
 
-### 1. 聊天相关接口
-- `GET /chat/sessions` - 获取用户会话列表
-- `POST /chat/session` - 创建新会话
-- `GET /chat/session/{id}` - 获取会话消息
-- `POST /chat/session/{id}/message` - 发送消息
-- `POST /chat/session/{id}/rename` - 重命名会话
-- `DELETE /chat/session/{id}` - 删除会话
+### 认证相关
+- `POST /api/auth/login` - 用户登录
+- `POST /api/auth/register` - 用户注册
 
-### 2. RAGFlow相关接口
-- `GET /api/ragflow/health` - 健康检查
-- `GET /api/ragflow/datasets` - 获取数据集列表
-- `POST /api/ragflow/datasets` - 创建数据集
-- `POST /api/ragflow/search` - 语义搜索
-- `POST /api/chat/session/{sessionId}/upload` - 文档上传
+### 对话相关
+- `GET /api/chat/sessions` - 获取会话列表
+- `POST /api/chat/session` - 创建新会话
+- `GET /api/chat/session/{id}` - 获取会话消息
+- `POST /api/chat/session/{id}/message` - 发送消息
 
-## 数据流程
+### 知识库相关
+- `POST /api/knowledge-base/upload` - 上传文件到知识库
+- `POST /api/knowledge-base/ask` - 知识库查询
 
-### 1. 文档上传流程
-```
-前端 → Gateway → ai-service → RAGFlow (上传+解析)
-```
+### ETL相关
+- `POST /api/etl/upload` - 上传并处理文件
 
-### 2. 知识检索流程
-```
-前端 → Gateway → ai-service → RAGFlow (语义搜索) → 前端展示
+## 部署说明
+
+### 前端部署
+1. 构建生产版本
+```sh
+npm run build
 ```
 
-### 3. 聊天流程
-```
-前端发送消息 → Gateway → ai-service → ChatModel处理 → 前端展示
-```
+2. 将`dist`目录部署到Nginx或其他Web服务器
 
-## 配置管理
-
-### 环境变量
-
-- `RAGFLOW_API_KEY` - RAGFlow API Key（可选）
-
-### 配置文件
-
-- `application.yml` - 主要配置文件
-- Nacos配置中心 - 分布式配置管理
-
-## 项目迁移说明
-
-本项目已完成从本地Redis向量存储到RAGFlow远程服务的迁移，主要变更包括：
-
-1. **后端变更**:
-   - 移除了本地Redis向量存储相关代码
-   - 新增RAGFlow服务集成
-   - 更新API接口适配RAGFlow
-
-2. **前端变更**:
-   - 重构知识库页面
-   - 增强文档上传功能
-   - 更新API调用适配后端变更
-
-## 使用示例
-
-### 1. 创建数据集
-
-```bash
-curl -X POST http://localhost:8081/api/ragflow/datasets \
-  -H "Content-Type: application/json" \
-  -d '{"name": "我的知识库", "description": "项目文档"}'
+### 后端部署
+1. 打包为JAR文件
+```sh
+mvn clean package
 ```
 
-### 2. 上传文档
-
-```bash
-curl -X POST http://localhost:8081/api/chat/session/1/upload \
-  -F "file=@document.pdf" \
-  -F "datasetId=your_dataset_id"
-```
-
-### 3. 检索知识
-
-```bash
-curl -X POST http://localhost:8081/api/ragflow/search \
-  -H "Content-Type: application/json" \
-  -d '{"question": "什么是RAGFlow？"}'
+2. 运行JAR文件
+```sh
+java -jar boot-mcp-server-0.0.1-SNAPSHOT.jar
 ```
 
 ## 注意事项
 
-1. **RAGFlow服务**：确保RAGFlow服务正常运行且可访问
-2. **API Key**：如需认证，请正确配置API Key
-3. **文件上传**：支持最大50MB的文件，格式包括PDF、TXT、DOC、DOCX等
-4. **异步处理**：文档上传后会异步解析和向量化，可能需要一些时间
-5. **服务依赖**：确保Nacos、MySQL、Redis等服务正常运行
-
-## 开发说明
-
-### 代码结构
-
-- `ai-service/` - AI核心服务
-  - `src/main/java/com/feiyu/aiservice/` - Java源代码
-  - `src/main/resources/` - 配置文件
-
-- `gateway-service/` - API网关服务
-  - `src/main/java/com/feiyu/gateway/` - Java源代码
-  - `src/main/resources/` - 配置文件
-
-- `ai-front-end/` - 前端应用
-  - `src/` - 前端源代码
-  - `public/` - 静态资源
-
-### 开发规范
-
-- 遵循Spring Boot和Vue 3最佳实践
-- 使用Lombok简化Java代码
-- 保持代码风格一致
-- 编写单元测试和集成测试
+1. 确保Redis服务正常运行
+2. 确保MySQL数据库已正确配置
+3. 配置文件中的AI模型参数需要根据实际环境调整
+4. 开发环境中需配置跨域访问
 
 ## 许可证
 
-[MIT](LICENSE)
-
-## 贡献指南
-
-欢迎贡献代码！请遵循以下步骤：
-
-1. Fork 本仓库
-2. 创建你的特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交你的更改 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 开启一个Pull Request
-
-## 联系方式
-
-如有问题或建议，请通过以下方式联系我们：
-
-- 项目地址：[AI Cloud](https://github.com/yourusername/ai_cloud)
-- 邮箱：your_email@example.com
+本项目采用MIT许可证。
